@@ -8,9 +8,9 @@ const allow = require("../middleware/roleMiddleware");
 router.post("/signup", controller.register);
 router.post("/signin", controller.login);
 // PROTECTED ROUTES
-router.get("/", auth, allow("ADMIN"), controller.getUsers);
+router.get("/", auth, allow, allow("ADMIN"),controller.getUsers);
 router.get("/:id", auth, controller.getUser);
-router.put("/:id", auth, controller.updateUser);
-router.delete("/:id", auth, allow("ADMIN"), controller.deleteUser);
+router.put("/:id", auth, allow("ADMIN"),controller.updateUser);
+router.delete("/:id", auth, allow("ADMIN"),controller.deleteUser);
 
 module.exports = router;

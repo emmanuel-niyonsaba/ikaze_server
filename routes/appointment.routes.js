@@ -10,3 +10,4 @@ router.put("/:id", auth, controller.updateAppointment);
 router.delete("/:id", auth, controller.deleteAppointment);
 
 module.exports = router;
+    
