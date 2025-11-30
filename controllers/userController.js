@@ -127,6 +127,9 @@ exports.updateUser = async (req, res) => {
 // DELETE USER
 exports.deleteUser = async (req, res) => {
   try {
+    const user = await User.findOne({
+      where: {id: req.params.id}
+    })
     const deleted = await User.destroy({
       where: { id: req.params.id }
     });
@@ -134,6 +137,7 @@ exports.deleteUser = async (req, res) => {
     if (!deleted) return res.status(404).json({ message: "User not found" });
 
     res.json({ message: "User deleted successfully" });
+    console.log(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
