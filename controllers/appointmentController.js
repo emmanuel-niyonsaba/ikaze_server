@@ -27,6 +27,7 @@ exports.getAppointments = async (req, res) => {
   }
 };
 
+// get pending Appoitments
 
 exports.getPendingAppointments = async (req, res) => {
   try {
