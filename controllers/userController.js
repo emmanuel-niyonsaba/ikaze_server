@@ -120,16 +120,51 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-// GET SINGLE USER
+// GET SINGLE USER (with appointments visible according to requester permissions)
 exports.getUser = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id, {
-      attributes: { exclude: ["password"] }
-    });
+    const targetId = Number(req.params.id);
+    const requesterId = req.user.userId;
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // fetch requester to determine role and rpCollege
+    const requester = await User.findByPk(requesterId);
+    if (!requester) return res.status(401).json({ message: "Invalid requester" });
 
-    res.json(user);
+    // allow owner to view their full profile
+    if (requesterId === targetId) {
+      const user = await User.findByPk(targetId, {
+        attributes: { exclude: ["password"] },
+        include: [{ model: require('../models/Appointment'), as: 'Appointments' }]
+      });
+
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      return res.json(user);
+    }
+
+    // allow ADMIN/DEAN to view other users but only appointments that belong to their college
+    if (['ADMIN', 'DEAN'].includes(requester.role)) {
+      const Appointment = require('../models/Appointment');
+
+      const user = await User.findByPk(targetId, {
+        attributes: { exclude: ["password"] },
+        include: [
+          {
+            model: Appointment,
+            as: 'Appointments',
+            where: { rpCollege: requester.rpCollege },
+            required: false,
+          },
+        ],
+      });
+
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      return res.json(user);
+    }
+
+    // otherwise forbidden
+    return res.status(403).json({ message: "Access denied" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

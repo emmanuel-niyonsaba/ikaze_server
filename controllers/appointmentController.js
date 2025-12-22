@@ -57,10 +57,45 @@ exports.createAppointment = async (req, res) => {
 
 
 
-// GET all appointments
+// GET all appointments (role-aware, supports college & status filters)
 exports.getAppointments = async (req, res) => {
   try {
-    const appointments = await Appointments.findAll();
+    const role = req.user.role;
+    const userId = req.user.userId;
+    const { college, status } = req.query;
+
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    // Admin: can view all or filter by college
+    if (role === "ADMIN") {
+      if (college) where.rpCollege = college;
+    }
+    // Dean: only their college
+    else if (role === "DEAN") {
+      const requester = await require("../models/User").findByPk(userId);
+      if (!requester) return res.status(401).json({ message: "Invalid requester" });
+      where.rpCollege = requester.rpCollege;
+    }
+    // Security: restrict to their college as well
+    else if (role === "SECURITY") {
+      const requester = await require("../models/User").findByPk(userId);
+      if (!requester) return res.status(401).json({ message: "Invalid requester" });
+      where.rpCollege = requester.rpCollege;
+    }
+    // Regular user: only their appointments
+    else if (role === "USER") {
+      where.UserId = userId;
+    }
+
+    const appointments = await Appointments.findAll({
+      where,
+      include: [{ association: 'User', attributes: ['id', 'email', 'firstName', 'lastName'] }],
+      order: [["startTime", "ASC"]],
+    });
+
     res.json(appointments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -99,7 +134,9 @@ exports.getPendingAppointments = async (req, res) => {
 // GET one appointment
 exports.getAppointment = async (req, res) => {
   try {
-    const appointment = await Appointments.findByPk(req.params.id);
+    const appointment = await Appointments.findByPk(req.params.id, {
+      include: [{ association: 'User', attributes: ['id', 'email', 'firstName', 'lastName', 'phone'] }]
+    });
     if (!appointment) return res.status(404).json({ message: "Not found" });
 
     res.json(appointment);
