@@ -8,6 +8,15 @@ exports.register = async (req, res) => {
   try {
     const { password, firstName, lastName, phone, email, rpCollege } = req.body;
 
+    // Basic validation
+    if (!password || !firstName || !lastName || !phone || !email || !rpCollege) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -36,8 +45,9 @@ exports.register = async (req, res) => {
 
 
     return res.status(201).json({
-      message: "User registered successfully",
-      token
+      token,
+      role:user.role,
+      email:user.email
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -45,10 +55,31 @@ exports.register = async (req, res) => {
 };
 
 
+
+exports.profile = async(req,res)=>{
+  try {
+
+    const data = await User.findByPk(req.user.userId,{
+      attributes: {
+        exclude:["password"]
+      }
+    })
+    if(!data) return res.status(500).json("Invalid PK")
+    return res.json(data)
+  } catch (error) {
+     return res.status(401).json({message:error.message})
+  }
+}
+
+
 // LOGIN USER
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const user = await User.findOne({ where: { email } });
 
@@ -62,14 +93,15 @@ exports.login = async (req, res) => {
 
 
     const token = jwt.sign(
-      { id: user.id, role: user.role,email:user.email },
+      { userId: user.id, role: user.role,email:user.email },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
     return res.json({
-      message: "Login successful",
-      token
+      token,
+      role:user.role,
+      email:user.email
     });
 
   } catch (error) {
