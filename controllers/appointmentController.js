@@ -1,5 +1,5 @@
 const Appointments = require("../models/Appointment");
-const {Op} = require("sequelize")
+const {Op, json} = require("sequelize")
 // CREATE appointment
 const generateRef = function () {
   const id = this.id?.toString().padStart(6, "0");
@@ -145,17 +145,50 @@ exports.getAppointment = async (req, res) => {
   }
 };
 
+exports.getAppointmentByRef = async (req, res) => {
+  try {
+    const appointment = await Appointments.findOne ({referenceNumber: req.params.ref}, {
+      include: [{ association: 'User', attributes: ['id', 'email', 'firstName', 'lastName', 'phone'] }]
+    });
+    
+    if (!appointment) return res.status(404).json({ message: "Not found" });
+
+    res.json(appointment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
 // UPDATE appointment
 exports.updateAppointment = async (req, res) => {
   try {
-    const updated = await Appointments.update(req.body, {
+    const updateData = { ...req.body };
+
+    if (req.body.guests) {
+      updateData.guests = typeof req.body.guests === "string" 
+        ? JSON.parse(req.body.guests) 
+        : req.body.guests;
+    }
+
+    const updated = await Appointments.update(updateData, {
       where: { id: req.params.id }
     });
 
-    if (!updated[0]) return res.status(404).json({ message: "Not found" });
+    if (updated[0] === 0) {
+      return res.status(404).json({ message: "No changes made or appointment not found" });
+    }
 
-    res.json({ message: "Updated successfully" });
+    const updatedAppointment = await Appointments.findByPk(req.params.id);
+
+    res.json({ 
+      message: "Updated successfully", 
+      data: updatedAppointment 
+    });
+
   } catch (error) {
+    console.error("Update Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
